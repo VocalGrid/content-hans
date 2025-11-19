@@ -1,0 +1,10 @@
+flowchart LR
+  GHL[GoHighLevel Workflows]
+  N1[n8n 01 Dispatch Call]
+  VG[VocalGrid Call Engine]
+  N2[n8n 02 Intake Call Webhook]
+
+  GHL -- webhook dispatch --> N1
+  N1 -- start call --> VG
+  VG -- end call event --> N2
+  N2 -- update fields tags stages --> GHL

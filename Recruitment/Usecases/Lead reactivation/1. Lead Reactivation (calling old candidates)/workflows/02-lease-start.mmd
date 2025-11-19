@@ -1,0 +1,12 @@
+flowchart TB
+  W2_Trigger[Trigger Contact Tag]
+  W2_Status[Update Contact Field reactivation_status=in_progress]
+  W2_If[If Else calls_attempt_count equals 0]
+  W2_Opp1[Create/Update Opportunity Stage To Dial Attempt 1]
+  W2_Opp2[Create/Update Opportunity Stage To Redial Attempt 2]
+  W2_Note1[Add Note Dial attempt 1]
+  W2_Note2[Add Note Dial attempt 2]
+
+  W2_Trigger --> W2_Status --> W2_If
+  W2_If --> W2_Opp1 --> W2_Note1
+  W2_If --> W2_Opp2 --> W2_Note2

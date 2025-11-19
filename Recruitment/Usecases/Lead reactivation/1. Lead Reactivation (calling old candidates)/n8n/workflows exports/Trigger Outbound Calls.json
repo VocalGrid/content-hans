@@ -1,0 +1,322 @@
+{
+  "name": "Trigger Outbound Calls",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ccms-gateway-6uohv.ondigitalocean.app/v1/calls/request",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"tenant_key\": \"i7+=+=/=\",\n  \"queue_id\": \"2a8b382b----\",\n  \"request_id\": \"hans-vg-{{ Array.from({length: 6}, () => \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\"[Math.floor(Math.random()*62)]).join('') }}\",\n  \"metadata\": {\n      \"agent_id\": \"agent_f121a154-2034-4aa5-9d14-6141707f11ea\",\n      \"connection_type\": \"sip_outbound\",\n      \"from_phone_number\": \"+14346089586\",\n      \"to_phone_number\": \"{{ (() => {\n  const raw = String($json.body.customData.phone || '');\n  let s = raw.replace(/[^\\d+]/g, '');     // keep only digits and a leading +\n  if (!s.startsWith('+')) s = (s.length === 10 ? '+1' + s : '+' + s);\n  return s;\n})() }}\",\n       \"custom_data\": {\n        \"name\" : \"{{ $json.body.customData.first_name }}\",\n        \"AGENT_NAME\" : \"Ryan\",\n        \"AGENCY_NAME\" : \"SuperHire Recruitiing\",\n        \"ORIGINAL_JOB_TITLE\" : \"{{ $json.body.customData.positions_applied }}\",\n        \"JOB_LOCATION\" : \"Denver\",\n        \"CANDIDATE_CITY\" : \"{{ $json.body.customData.city }}\",\n        \"CANDIDATE_FIRST_NAME\" : \"{{ $json.body.customData.first_name }}\",\n\"APPLICATION_DATE\" : \"{{ $json.body.customData.date_applied }}\",\n\"user_number\" : \"{{ (() => {\n  const raw = String($json.body.customData.phone || '');\n  let s = raw.replace(/[^\\d+]/g, '');     // keep only digits and a leading +\n  if (!s.startsWith('+')) s = (s.length === 10 ? '+1' + s : '+' + s);\n  return s;\n})() }}\"\n      },\n      \"sip_trunk_id\": \"ST_qkQ9w7ZXGfia\"\n    }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        432,
+        -112
+      ],
+      "id": "fa564567-6e5a-407f-9e21-8ed33cf54dc7",
+      "name": "HTTP REQUEST WITH SECRETS",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d3482452-f265-49fe-bfdf-241200674b98",
+              "name": "to_phone_number",
+              "value": "+16475423118",
+              "type": "string"
+            },
+            {
+              "id": "50ac739d-c950-4345-9f35-81033b7ceca0",
+              "name": "agent_id",
+              "value": "agent_f121a154-2034-4aa5-9d14-6141707f11ea",
+              "type": "string"
+            },
+            {
+              "id": "b9b6972d-45ef-4b23-bd7b-2b06856f0f26",
+              "name": "name",
+              "value": "Hans",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        -48
+      ],
+      "id": "97755521-9d1a-46dc-9a8c-720e0b148086",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -48
+      ],
+      "id": "95888c34-00fb-44d0-8774-e6c0ab272a50",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "content": "SECRET- do not show to anyone",
+        "height": 496,
+        "width": 576,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        352,
+        -208
+      ],
+      "typeVersion": 1,
+      "id": "1f56dcb2-44c7-4c4a-80a2-7eab12ce5ebb",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "1b29decd-a382-43b1-8a68-2426af676c9d",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -416,
+        208
+      ],
+      "id": "f754c8b0-cfdc-4522-9914-6c38778f8f94",
+      "name": "Webhook",
+      "webhookId": "1b29decd-a382-43b1-8a68-2426af676c9d"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://livekit-manager-server-rutxx.ondigitalocean.app/trigger-call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n      \"agent_id\": \"agent_f121a154-2034-4aa5-9d14-6141707f11ea\",\n      \"connection_type\": \"sip_outbound\",\n      \"from_phone_number\": \"+14346089586\",\n      \"to_phone_number\": \"{{ (() => {\n  const raw = String($json.body.customData.phone || '');\n  let s = raw.replace(/[^\\d+]/g, '');     // keep only digits and a leading +\n  if (!s.startsWith('+')) s = (s.length === 10 ? '+1' + s : '+' + s);\n  return s;\n})() }}\",\n       \"custom_data\": {\n        \"name\" : \"{{ $json.body.customData.first_name }}\",\n        \"AGENT_NAME\" : \"Ryan\",\n        \"AGENCY_NAME\" : \"SuperHire Recruitiing\",\n        \"ORIGINAL_JOB_TITLE\" : \"{{ $json.body.customData.positions_applied }}\",\n        \"JOB_LOCATION\" : \"{{$json.body.customData.city}}\",\n        \"CANDIDATE_CITY\" : \"{{ $json.body.customData.applied_job_city}}\",\n        \"CANDIDATE_FIRST_NAME\" : \"{{ $json.body.customData.first_name }}\",\n\"APPLICATION_DATE\" : \"{{ $json.body.customData.date_applied }}\",\n\"user_number\" : \"{{ (() => {\n  const raw = String($json.body.customData.phone || '');\n  let s = raw.replace(/[^\\d+]/g, '');     // keep only digits and a leading +\n  if (!s.startsWith('+')) s = (s.length === 10 ? '+1' + s : '+' + s);\n  return s;\n})() }}\",\n\n\n        \"initiator\": \"ghl\",\n    \"orchestrator\": \"08-call-orchestration\",\n    \"script_version\": \"v1\",\n    \"prompt_version\": \"v1.0.0\",\n\n    \"ghl_contact_id\": \"{{$json.body.customData.ghl_contact_id}}\",\n    \"attempt_number\": \"{{ $json.body.customData.current_attempt_number }}\",\n    \"attempt_count\": \"{{$json.body.customData.attempt_count}}\",\n    \"campaign\": \"{{$json.body.customData.campaign}}\",\n    \"pipeline_name\": \"{{$json.body.customData.pipeline_name}}\",\n    \"stage_name\": \"{{$json.body.customData.stage_name}}\",\n    \"lease_tag\": \"{{$json.body.customData.lease_tag}}\",\n\n\n\n    \"first_name\": \"{{$json.body.customData.first_name}}\",\n    \"last_name\": \"{{$json.body.customData.last_name}}\",\n    \"email\": \"{{$json.body.customData.email}}\",\n\n    \"timezone\": \"{{$json.body.customData.timezone}}\",\n\n     \"opportunity_id\": \"{{$json.body.customData.opportunity_id}}\"\n\n    \n\n\n\n  \n      },\n      \"sip_trunk_id\": \"ST_qkQ9w7ZXGfia\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        144
+      ],
+      "id": "df6c2004-168e-46e9-bd67-48a82a32e26b",
+      "name": "Make Call on lk manager direct- outbound1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "v36x1KF2KyrMTxTh",
+          "name": "lk manager server"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "api.vocalgrid.ai",
+            "user-agent": "axios/1.12.2",
+            "content-length": "2908",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "traceparent": "00-f18bda774c23d553df85e6c45d76179d-8d7bc884a87ee7d4-00",
+            "via": "1.1 Caddy",
+            "x-forwarded-for": "34.55.150.208",
+            "x-forwarded-host": "api.vocalgrid.ai",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "Ava Meeting Location": "",
+            "Ava Appointment Date and Time": "",
+            "Ava Meeting Duration": "",
+            "Transcript": "",
+            "AVA Call Start Time": "",
+            "AVA Demo Projects": "",
+            "AVA Call End Time": "",
+            "Recording URL": "",
+            "reactivation_campaign": " Nova Recruiters.campaign_1",
+            "reactivation_status": "in_progress",
+            "calls_attempt_count": "",
+            "next_attempt_at": "2025-11-08",
+            "last_disposition": "last_disposition",
+            "ai_call_summaries ": "ai_call_summaries",
+            "ai_candidate_experience": "ai_candidate_experience",
+            "ai_salary_expectation": "ai_salary_expectation",
+            "ai_availability": "ai_availability",
+            "ai_recording_urls": "ai_recording_urls",
+            "ai_transcripts": "ai_transcripts",
+            "Positions Applied": "Software Developer",
+            "Date Applied": "September 25",
+            "Lead Source": "linkedin",
+            "Applied Job City": "Denver",
+            "last_call_id": "last_call_id",
+            "ai_work_mode": "ai_work_mode",
+            "ai_preferred_contact": "ai_preferred_contact",
+            "ai_preferred_contact_alt": "ai_preferred_contact_alt",
+            "ai_location_confirmed": "ai_location_confirmed",
+            "ai_desired_roles": "ai_desired_roles",
+            "ai_new_skills": "ai_new_skills",
+            "ai_salary_min": 40000,
+            "ai_salary_max": 50000,
+            "ai_currency": "ai_currency",
+            "contact_id": "C33pY52acH7aRdB1ZyDz",
+            "first_name": "Gurinder",
+            "last_name": "Saini",
+            "full_name": "Gurinder Saini",
+            "email": "gurinderfbaexcel@gmail.com",
+            "phone": "+16475423118",
+            "tags": "recruitment.reactivation.enrolled,recruitment.reactivation.leased",
+            "address1": "123 Capstone Lane",
+            "city": "Denver",
+            "state": "CO",
+            "country": "US",
+            "timezone": "America/Detroit",
+            "date_created": "2025-09-20T13:38:08.946Z",
+            "postal_code": "12942",
+            "full_address": "123 Capstone Lane, Denver CO 12942",
+            "contact_type": "lead",
+            "opportunity_name": "Gurinder Saini",
+            "status": "open",
+            "pipleline_stage": "Enrolled",
+            "pipeline_id": "0ONSu7ZncGAtORzw84v4",
+            "id": "29zRh7FAw0DlEt4IDvgJ",
+            "pipeline_name": "Recruitment- Lead Reactivation",
+            "location": {
+              "name": "Jujhaar AI",
+              "address": "505 Sophia Cres",
+              "city": "London",
+              "state": "Ontario",
+              "country": "US",
+              "postalCode": "N6G0T5",
+              "fullAddress": "505 Sophia Cres, London Ontario N6G0T5",
+              "id": "oGTbzegnY34b0tcJKcOb"
+            },
+            "workflow": {
+              "id": "5f0be298-1d1a-4c16-ba45-3b73f046b04d",
+              "name": "08-call-orchestration"
+            },
+            "triggerData": {},
+            "contact": {
+              "attributionSource": {
+                "sessionSource": "CRM UI",
+                "medium": "manual",
+                "mediumId": null
+              },
+              "lastAttributionSource": {}
+            },
+            "attributionSource": {},
+            "customData": {
+              "date_applied": "September 25",
+              "lead_source": "linkedin",
+              "first_name": "Gurinder",
+              "positions_applied": "Software Developer",
+              "last_name": "Saini",
+              "email": "gurinderfbaexcel@gmail.com",
+              "phone": "+1 647-542-3118",
+              "full_address": "123 Capstone Lane, Denver CO 12942",
+              "city": "Denver",
+              "timezone": "EST",
+              "applied_job_city ": "Denver",
+              "ghl_contact_id": "C33pY52acH7aRdB1ZyDz",
+              "campaign": " Nova Recruiters.campaign_1",
+              "attempt_count": "0",
+              "current_attempt_number": "1",
+              "pipeline_name": "Recruitment- Lead Reactivation",
+              "stage_name": "Enrolled",
+              "lease_tag": "recruitment.reactivation.leased",
+              "opportunity_id": "29zRh7FAw0DlEt4IDvgJ",
+              "pipeline_id": "",
+              "pipeline_stage_id": ""
+            }
+          },
+          "webhookUrl": "https://api.vocalgrid.ai/webhook/1b29decd-a382-43b1-8a68-2426af676c9d",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP REQUEST WITH SECRETS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Make Call on lk manager direct- outbound1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "33124af1-1749-430e-8fd4-2ce5c48cb674",
+  "meta": {
+    "instanceId": "91af3371e192c52c4ee1aaa207c5b65f9b2d0a32708817d3db10855f0c00ee4e"
+  },
+  "id": "sMmBi00WRMaGoqvN",
+  "tags": []
+}

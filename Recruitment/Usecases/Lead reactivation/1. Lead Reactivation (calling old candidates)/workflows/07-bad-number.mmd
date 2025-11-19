@@ -1,0 +1,8 @@
+flowchart TB
+  W7_Trigger[Tag bad number or Status bad number]
+  W7_Move[Move stage Bad Number]
+  W7_Clear[Clear next attempt]
+  W7_RemLease[Remove tag leased]
+  W7_Note[Add note Bad number]
+
+  W7_Trigger --> W7_Move --> W7_Clear --> W7_RemLease --> W7_Note

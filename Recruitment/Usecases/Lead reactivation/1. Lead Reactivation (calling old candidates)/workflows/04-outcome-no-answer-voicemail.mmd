@@ -1,0 +1,15 @@
+flowchart TB
+  W4_Trigger[Status updated]
+  W4_Check[Check calls attempt count]
+  W4_Move1[Move stage Attempt 1 Completed]
+  W4_Move2[Move stage Attempt 2 Completed]
+  W4_Tag1[Add tag attempt1 done]
+  W4_Tag2[Add tag attempt2 done]
+  W4_Clear[Remove tag leased]
+  W4_Note[Add note Outcome]
+
+  W4_Trigger --> W4_Check
+  W4_Check --> W4_Move1 --> W4_Tag1
+  W4_Check --> W4_Move2 --> W4_Tag2
+  W4_Tag1 --> W4_Clear --> W4_Note
+  W4_Tag2 --> W4_Clear --> W4_Note

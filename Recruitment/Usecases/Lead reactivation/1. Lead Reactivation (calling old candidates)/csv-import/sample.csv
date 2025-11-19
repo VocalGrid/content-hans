@@ -1,0 +1,6 @@
+first_name,last_name,email,phone,city,state,country,postal_code,timezone,full_address,positions_applied,date_applied,lead_source,applied_job_city,reactivation_campaign,tags
+Gurinder,Saini,gurinder@example.com,+16475423118,Denver,CO,US,80202,America/Denver,123 Capstone Lane,Software Developer,2025-09-25,linkedin,Denver,Nova Recruiters.campaign_1,"recruitment.reactivation.enrolled,campaign Jannis750k"
+Hannah,Lee,hannah.lee@example.com,+13125550123,Chicago,IL,US,60601,America/Chicago,200 N State St, Product Manager,2025-08-15,referral,Chicago,Nova Recruiters.campaign_1,recruitment.reactivation.enrolled
+Miguel,Ramos,miguel.r@example.com,+14155550123,San Francisco,CA,US,94105,America/Los_Angeles,425 Market St, QA Engineer,September 10,job_board,San Francisco,Nova Recruiters.campaign_1,recruitment.reactivation.enrolled
+Aisha,Khan,aisha.khan@example.com,+442071838750,London,,GB,EC1A 1BB,Europe/London,10 Downing St, Data Analyst,2025-07-30,linkedin,London,Nova Recruiters.campaign_1,recruitment.reactivation.enrolled
+Priya,Patel,priya.patel@example.com,+919820123456,Mumbai,MH,IN,400001,Asia/Kolkata,12 Marine Drive, Frontend Developer,2025-09-01,referral,Mumbai,Nova Recruiters.campaign_1,recruitment.reactivation.enrolled

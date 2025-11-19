@@ -1,0 +1,1051 @@
+{
+  "name": "End Call Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "02237b61-afaf-4ab0-b094-e5b839835ccf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -224,
+        -96
+      ],
+      "id": "88fb9920-5130-4bf1-869e-33e29c8cc799",
+      "name": "Webhook",
+      "webhookId": "02237b61-afaf-4ab0-b094-e5b839835ccf"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.body.transcript_string }}",
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"description\": \"Extract structured info from a recruitment call transcript. Rules: (1) No guesses—if unknown use empty string, 0, [], or false. (2) Parse salary even if informal (e.g., 'mid-seventies' → 70000–70000). If hourly, x2080 and round to nearest 100. (3) Currency: if unstated, infer from location (US→USD, Canada→CAD), else default USD. (4) Work mode map: onsite/hybrid/remote/unspecified. (5) Preferred contact: map 'text' to sms. (6) Title case roles; dedupe arrays. (7) summary_bullets must be exactly 3 items (≤110 chars each).\",\n  \"properties\": {\n    \"still_looking\": {\n      \"type\": \"boolean\",\n      \"description\": \"true if candidate says they are open/looking/interested; false otherwise or if unclear.\"\n    },\n    \"current_employment\": {\n      \"type\": \"string\",\n      \"description\": \"1–2 sentences: current role + employer + temp/contract/unemployed if mentioned. Empty if unknown.\"\n    },\n     \"desired_roles\": { \"type\": \"array\", \"items\": { \"type\": \"string\" },\n      \"description\": \"Target titles. Remove generic tokens like 'Entry Level'. Use 'Entry-Level Accountant' if needed. Dedupe.\"\n     },\n    \"new_skills\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\" },\n      \"description\": \"New skills/certs since last time; concise nouns, deduped. Empty if none.\"\n    },\n    \"salary_min\": {\n      \"type\": \"number\",\n      \"description\": \"Minimum annual salary in numeric USD/CAD/etc. If a single number given, put same value in min and max. If hourly stated, multiply by 2080 and round to nearest 100. 0 if unknown.\"\n    },\n    \"salary_max\": {\n      \"type\": \"number\",\n      \"description\": \"Maximum annual salary in numeric USD/CAD/etc. If only one figure stated, copy it. If unspecified, 0.\"\n    },\n    \"currency\": {\n      \"type\": \"string\",\n      \"description\": \"Three-letter code (USD, CAD, GBP, EUR, AUD, INR). Infer from location when unstated; default USD.\"\n    },\n    \"salary_text\": {\n      \"type\": \"string\",\n      \"description\": \"Human-friendly phrasing exactly as said (e.g., '$70k–$80k', 'mid-70s', 'open').\"\n    },\n    \"work_mode\": {\n      \"type\": \"string\",\n      \"enum\": [\"onsite\", \"hybrid\", \"remote\", \"unspecified\"],\n      \"description\": \"Map synonyms to one of the four values.\"\n    },\n    \"start_timeline\": {\n      \"type\": \"string\",\n      \"description\": \"Normalized start timing (e.g., 'immediate', 'two weeks', 'one month', 'TBD').\"\n    },\n \"preferred_contact\": { \"type\": \"string\",\n      \"enum\": [\"sms\",\"phone\",\"email\",\"unspecified\"],\n      \"description\": \"If both phone and text are mentioned, prefer 'sms'. Map 'text' -> 'sms'.\"\n    },\n    \"preferred_contact_alt\": { \"type\": \"string\",\n      \"enum\": [\"sms\",\"phone\",\"email\",\"unspecified\"],\n      \"description\": \"Optional: a second acceptable channel if they clearly mention two.\"\n    },\n\n    \"phone_confirmed\": { \"type\": \"boolean\",\n      \"description\": \"true if the number was read back and affirmed.\" },\n    \"best_number\": { \"type\": \"string\",\n      \"description\": \"The confirmed phone number in E.164 if available, else raw.\" },\n\n    \n    \"location_confirmed\": {\n      \"type\": \"string\",\n      \"description\": \"City/region confirmed during the call (e.g., 'Lakewood, CO'). Empty if not discussed.\"\n    },\n    \"dnc_intent\": {\n      \"type\": \"boolean\",\n      \"description\": \"true if they ask to stop calling/texting or request removal; false otherwise.\"\n    },\n\n\n    \"voicemail_detected\": {\n  \"type\": \"boolean\",\n  \"description\": \"true if the audio clearly indicates a voicemail/recording/IVR greeting (phrases like 'please leave a message', 'after the tone', 'beep', 'mailbox is full', 'has not been set up', 'not available right now'), or the transcript marks [voicemail]. false if a human spoke.\"\n},\n\"voicemail_reason\": {\n  \"type\": \"string\",\n  \"enum\": [\"greeting\",\"full_mailbox\",\"not_setup\",\"company_ivr\",\"unknown\",\"none\"],\n  \"description\": \"If voicemail_detected=true, classify the type. Use 'greeting' for normal personal/office greeting; 'company_ivr' for menus; 'not_setup' or 'full_mailbox' when stated; 'unknown' if unclear; 'none' if voicemail_detected=false.\"\n},\n\"left_voicemail\": {\n  \"type\": \"boolean\",\n  \"description\": \"true if the agent actually left a message (e.g., 'Hi this is...', then hangs up). false if no message was left or not applicable.\"\n},\n\n\n    \n    \"summary_bullets\": {\n      \"type\": \"array\",\n      \"items\": { \"type\": \"string\", \"maxLength\": 110 },\n      \"minItems\": 3,\n      \"maxItems\": 3,\n      \"description\": \"Exactly 3 bullets: (1) status/location, (2) roles + work mode, (3) salary + start.\"\n    },\n    \"notes\": {\n      \"type\": \"string\",\n      \"maxLength\": 240,\n      \"description\": \"Extra recruiter context (<=240 chars). No PII beyond what was spoken.\"\n    }\n  },\n  \"required\": [\n    \"still_looking\",\n    \"desired_roles\",\n    \"salary_text\",\n    \"work_mode\",\n    \"start_timeline\",\n    \"preferred_contact\",\n    \"dnc_intent\",\n    \"summary_bullets\"\n  ],\n  \"additionalProperties\": false\n}\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        48,
+        -80
+      ],
+      "id": "4e352f04-03d8-493e-b5d3-d4e3afc408ae",
+      "name": "Information Extractor",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        120,
+        144
+      ],
+      "id": "41de3f32-124b-4604-9606-968f34f63efc",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "rgrxiMAABy3sJLAy",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Minimal: output only { disconnection_reason }\n\nconst body = $('Webhook').first().json.body || {};\n\nconst results = Array.isArray(body?.transcript_messages?.results)\n  ? body.transcript_messages.results\n  : [];\nconst toolEvents = Array.isArray(body?.tool_events) ? body.tool_events : [];\n\nlet disconnection_reason = 'user-hung-up';\n\nfunction decide(name) {\n  if (!name) return;\n  const tn = String(name).toLowerCase();\n  if (tn.includes('transfer')) disconnection_reason = 'call-transferred';\n  else if (tn === 'end_call' || tn === 'endcall' || tn === 'end-call' || tn === 'hangup')\n    disconnection_reason = 'agent-ended';\n  else disconnection_reason = `unknown-tool: ${name}`;\n}\n\n// 1) check transcript_messages (last tool call/result)\nfor (let i = results.length - 1; i >= 0; i--) {\n  const r = results[i];\n  if (\n    r &&\n    (r.role === 'MESSAGE_ROLE_TOOL_CALL' || r.role === 'MESSAGE_ROLE_TOOL_RESULT') &&\n    typeof r.toolName === 'string'\n  ) {\n    decide(r.toolName);\n    break;\n  }\n}\n\n// 2) fallback: tool_events\nif (disconnection_reason === 'user-hung-up' && toolEvents.length) {\n  decide(toolEvents[toolEvents.length - 1]?.tool_name);\n}\n\n// 3) fallback: parse transcript_string\nif (disconnection_reason === 'user-hung-up' && typeof body.transcript_string === 'string') {\n  const s = body.transcript_string;\n  if (/\\[TOOL CALL:\\s*end[_\\s-]?call/i.test(s)) disconnection_reason = 'agent-ended';\n  else if (/\\[TOOL CALL:\\s*transfer/i.test(s)) disconnection_reason = 'call-transferred';\n}\n\nreturn [{ json: { disconnection_reason } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -80
+      ],
+      "id": "1f2c5817-3ad7-4ee0-a0b0-6ca851b92036",
+      "name": "disconnection reason1"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{ $('Webhook').item.json.body.custom_data.ghl_contact_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $('Prepare GHL Request Payload').item.json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        -368
+      ],
+      "id": "d9e20823-db36-476b-8799-bb48b0eaac98",
+      "name": "Update GHL",
+      "retryOnFail": false,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l5glyd4N1YYvYo9L",
+          "name": "Jujhaar AI GHL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## GHL Recruitment Custom Fields Map: GHL custom field : GHL field ID\n\n\n{\n  \"positions_applied\": \"evtYjq2ux1DLgrSi4mn2\",\n  \"date_applied\": \"BEY05jGbecwGSGQhxUTh\",\n  \"lead_source\": \"Re0BxmzYL1rFNjswYwmY\",\n  \"calls_attempt_count\": \"U6vf4SSIcl0DB4Kj2EJc\",\n  \"reactivation_campaign\": \"mHx6OX8akGAUo4xEGkFL\",\n  \"next_attempt_at\": \"YFW9IOhWSOZ5SZRwMx4o\",\n  \"reactivation_status\": \"MudDc2BhK51MwV3wOKvS\",\n  \"applied_job_city\": \"KbM5XoXRwTxHGFzonsqZ\",\n  \"last_disposition\": \"nzDUdhwSWaq454x5TRkz\",\n  \"ai_call_summaries\": \"kEPJVY6gEWx8TF25lZiv\",\n  \"ai_candidate_experience\": \"SOmKSd6PlOXFimx6rWf2\",\n  \"ai_salary_expectation\": \"YO2uRhV5H64v6xXGlUDq\",\n  \"ai_availability\": \"BSYOpcdU9Syu0kXBGJBN\",\n  \"ai_recording_urls\": \"LJ0yCDDCzgINxhfSIGGC\",\n  \"ai_transcripts\": \"ZdQkdPp3Ha5x6waX3Ubi\",\n  \"last_call_id\": \"cjR2iuduSSbCXy1NVd9r\",\n  \"ai_work_mode\": \"7gBXtkYDpPtpziCZjNdZ\",\n  \"ai_preferred_contact\": \"FYFP0xYrOITj6cFwteUq\",\n  \"ai_preferred_contact_alt\": \"a3JzkZJojane9tj2KH2C\",\n  \"ai_location_confirmed\": \"8uMx1HYjuSSvbuZzALOv\",\n  \"ai_desired_roles\": \"rYuzn6zQtSyWhKrzxrfq\",\n  \"ai_new_skills\": \"ntWu4qHr9udIrXgzfNLu\",\n  \"ai_salary_min\": \"S1zKOvPZf3kIr0Pns2R2\",\n  \"ai_salary_max\": \"xx3huToYrKXNvhhcofeX\",\n  \"ai_currency\": \"j4VN1Pc0esX0h1tS18h3\"\n}\n\n\n\n| Field (human)                 | Unique key                         | ID                     |\n| ----------------------------- | ---------------------------------- | ---------------------- |\n| Positions Applied             | `contact.positions_applied`        | `evtYjq2ux1DLgrSi4mn2` |\n| Date Applied                  | `contact.date_applied`             | `BEY05jGbecwGSGQhxUTh` |\n| Lead Source                   | `contact.lead_source`              | `Re0BxmzYL1rFNjswYwmY` |\n| Calls Attempt Count           | `contact.calls_attempt_count`      | `U6vf4SSIcl0DB4Kj2EJc` |\n| Reactivation Campaign         | `contact.reactivation_campaign`    | `mHx6OX8akGAUo4xEGkFL` |\n| Next Attempt At               | `contact.next_attempt_at`          | `YFW9IOhWSOZ5SZRwMx4o` |\n| Reactivation Status           | `contact.reactivation_status`      | `MudDc2BhK51MwV3wOKvS` |\n| Applied Job City              | `contact.applied_job_city`         | `KbM5XoXRwTxHGFzonsqZ` |\n| Last Disposition              | `contact.last_disposition`         | `nzDUdhwSWaq454x5TRkz` |\n| AI Call Summaries             | `contact.ai_call_summaries`        | `kEPJVY6gEWx8TF25lZiv` |\n| AI Candidate Experience       | `contact.ai_candidate_experience`  | `SOmKSd6PlOXFimx6rWf2` |\n| AI Salary Expectation (text)  | `contact.ai_salary_expectation`    | `YO2uRhV5H64v6xXGlUDq` |\n| AI Availability (text)        | `contact.ai_availability`          | `BSYOpcdU9Syu0kXBGJBN` |\n| AI Recording URLs             | `contact.ai_recording_urls`        | `LJ0yCDDCzgINxhfSIGGC` |\n| AI Transcripts                | `contact.ai_transcripts`           | `ZdQkdPp3Ha5x6waX3Ubi` |\n| Last Call ID                  | `contact.last_call_id`             | `cjR2iuduSSbCXy1NVd9r` |\n| AI Work Mode                  | `contact.ai_work_mode`             | `7gBXtkYDpPtpziCZjNdZ` |\n| AI Preferred Contact          | `contact.ai_preferred_contact`     | `FYFP0xYrOITj6cFwteUq` |\n| AI Preferred Contact Alt      | `contact.ai_preferred_contact_alt` | `a3JzkZJojane9tj2KH2C` |\n| AI Location Confirmed         | `contact.ai_location_confirmed`    | `8uMx1HYjuSSvbuZzALOv` |\n| AI Desired Roles (JSON/LTEXT) | `contact.ai_desired_roles`         | `rYuzn6zQtSyWhKrzxrfq` |\n| AI New Skills (JSON/LTEXT)    | `contact.ai_new_skills`            | `ntWu4qHr9udIrXgzfNLu` |\n| AI Salary Min (number)        | `contact.ai_salary_min`            | `S1zKOvPZf3kIr0Pns2R2` |\n| AI Salary Max (number)        | `contact.ai_salary_max`            | `xx3huToYrKXNvhhcofeX` |\n| AI Currency                   | `contact.ai_currency`              | `j4VN1Pc0esX0h1tS18h3` |\n| ai_still_looking                   | `contact.ai_still_looking`              | `g8A2Gqwd1RDV6bqPXBBh` |\n",
+        "height": 1184,
+        "width": 752
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1296,
+        -1056
+      ],
+      "typeVersion": 1,
+      "id": "e42abd59-451f-4b77-87cf-dd5a243843ad",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.converseum.pro/webhook/bfefa0c4-d054-4170-9297-e908ad3e67a5",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        -304
+      ],
+      "id": "8bc73b36-f6a4-4c48-8540-f05c55783a3d",
+      "name": "Send to LK main webhook to save in VG Supabase"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Node: last disposition1\nconst wb = $('Webhook').first().json.body || {};\nconst ix = $('Information Extractor').first().json?.output || {};\nconst disc = $('disconnection reason1').first().json?.disconnection_reason || null;\n\n// Timestamps\nconst created = wb.created || null;\nconst joined  = wb.joined  || null;\nconst ended   = wb.ended   || null;\n\nconst ts = s => {\n  const n = Date.parse(s || \"\");\n  return Number.isNaN(n) ? null : n;\n};\nconst tCreated = ts(created);\nconst tJoined  = ts(joined);\nconst tEnded   = ts(ended);\n\n// Durations\nconst talkSec = (tJoined && tEnded) ? Math.max(0, Math.round((tEnded - tJoined)/1000)) : 0;\nconst callAgeSec = (tCreated && tEnded) ? Math.max(0, Math.round((tEnded - tCreated)/1000)) : 0;\n\n// Heuristics (tweak if needed)\nconst MIN_TALK_SEC_AS_ANSWERED = 2;   // consider <2s as not truly answered (glitches)\nconst MIN_RING_SEC_NO_ANSWER    = 8;  // if no join and rang >=8s ⇒ no_answer, else failed\n\n// Signals from extractor\nconst dnc         = Boolean(ix.dnc_intent);\nconst vmDetected  = Boolean(ix.voicemail_detected);\nconst vmReason    = ix.voicemail_reason || (vmDetected ? \"unknown\" : \"none\");\n\n// Extra VM heuristics from transcript (fallback if extractor absent)\nconst trans = String(wb.transcript_string || \"\");\nconst vmHeuristic =\n  /\\b(please leave a message|after the tone|beep\\b|mailbox is full|has not been set up|not available right now)\\b/i.test(trans);\n\n// Call answered if we have a join timestamp\nconst callAnswered = Boolean(joined);\n\n// Classify\nlet final_last_disposition = \"failed\";\n\nif (dnc) {\n  final_last_disposition = \"dnc\";\n} else if (vmDetected || vmHeuristic) {\n  final_last_disposition = \"voicemail\";\n} else if (callAnswered) {\n  // if extremely short talk, treat as \"failed\" unless you prefer \"answered\"\n  final_last_disposition = (talkSec >= MIN_TALK_SEC_AS_ANSWERED) ? \"answered\" : \"failed\";\n} else {\n  // no join → either ringing out (no_answer) or immediate fail\n  final_last_disposition = (callAgeSec >= MIN_RING_SEC_NO_ANSWER) ? \"no_answer\" : \"failed\";\n}\n\n// Optional: small prefix you can prepend to summaries if you like\nconst ai_summary_prefix = (\n  final_last_disposition === \"voicemail\" ? \"Voicemail\" :\n  final_last_disposition === \"dnc\"       ? \"DNC requested\" :\n  final_last_disposition === \"answered\"  ? \"Answered\" :\n  final_last_disposition === \"no_answer\" ? \"No answer\" : \"Failed\"\n);\n\n// Emit for downstream nodes\nreturn [{\n  json: {\n    final_last_disposition,\n    callAnswered,\n    talkSec,\n    callAgeSec,\n    voicemail_detected: vmDetected || vmHeuristic,\n    voicemail_reason: vmReason,\n    disconnection_reason: disc || null,\n    ai_summary_prefix\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        -80
+      ],
+      "id": "f7059f92-eeb2-4581-a0c3-2022dbca560b",
+      "name": "final disposition - picked - voicemail - etc"
+    },
+    {
+      "parameters": {
+        "jsCode": "{{\n  const wb = $('Webhook').item.json.body || {};\n  const ix = $('Information Extractor').item.json.output || {};\n  const flags = $('Action Flags').item.json;       // <-- new\n  const disp = $json.final_last_disposition || ''; // from your earlier node\n\n  // bullets → \"• a\\n• b\\n• c\"\n  const bullets = (ix.summary_bullets || []).slice(0, 3).map(b => String(b).trim());\n  const summary = bullets.length ? ('• ' + bullets.join('\\n• ')) : '';\n\n  // keep transcript truncation\n  const MAX_TRANSCRIPT = 12000;\n  let transcript = String(wb.transcript_string || '');\n  if (transcript.length > MAX_TRANSCRIPT) {\n    transcript = transcript.slice(0, MAX_TRANSCRIPT) + '… [truncated]';\n  }\n\n  // simple status for UI\n  const reactStatus =\n    flags.pipeline_stage_name.includes('Qualified') ? 'qualified' :\n    (disp === 'dnc' ? 'dnc' :\n    (disp === 'answered' ? 'in_progress' :\n    (disp === 'no_answer' ? 'in_progress' : 'in_progress')));\n\n  // 👉 fill these 4 IDs from your GHL custom fields\n  const F_IDS = {\n    calls_attempt_count:    'U6vf4SSIcl0DB4Kj2EJc',\n    next_attempt_at:        'YFW9IOhWSOZ5SZRwMx4o',\n    last_disposition:       'nzDUdhwSWaq454x5TRkz',  // you already have this in your payload\n    reactivation_status:    'MudDc2BhK51MwV3wOKvS',\n  };\n\n  return {\n    customFields: [\n      { id: 'cjR2iuduSSbCXy1NVd9r', key: 'contact.last_call_id',\n        field_value: String(wb.custom_data?.call_id || '') },\n\n      { id: F_IDS.last_disposition, key: 'contact.last_disposition',\n        field_value: disp },\n\n      { id: 'kEPJVY6gEWx8TF25lZiv', key: 'contact.ai_call_summaries',\n        field_value: summary },\n\n      { id: 'SOmKSd6PlOXFimx6rWf2', key: 'contact.ai_candidate_experience',\n        field_value: String(ix.current_employment || '') },\n\n      { id: 'YO2uRhV5H64v6xXGlUDq', key: 'contact.ai_salary_expectation',\n        field_value: String(ix.salary_text || '') },\n\n      { id: 'BSYOpcdU9Syu0kXBGJBN', key: 'contact.ai_availability',\n        field_value: String(ix.start_timeline || '') },\n\n      { id: '7gBXtkYDpPtpziCZjNdZ', key: 'contact.ai_work_mode',\n        field_value: String(ix.work_mode || '') },\n\n      { id: 'FYFP0xYrOITj6cFwteUq', key: 'contact.ai_preferred_contact',\n        field_value: String(ix.preferred_contact || 'unspecified') },\n\n      { id: 'a3JzkZJojane9tj2KH2C', key: 'contact.ai_preferred_contact_alt',\n        field_value: String(ix.preferred_contact_alt || 'unspecified') },\n\n      { id: '8uMx1HYjuSSvbuZzALOv', key: 'contact.ai_location_confirmed',\n        field_value: String(ix.location_confirmed || '') },\n\n      { id: 'g8A2Gqwd1RDV6bqPXBBh', key: 'contact.ai_still_looking',\n        field_value: String(ix.still_looking || '') },\n\n      { id: 'rYuzn6zQtSyWhKrzxrfq', key: 'contact.ai_desired_roles',\n        field_value: JSON.stringify(ix.desired_roles || []) },\n\n      { id: 'ntWu4qHr9udIrXgzfNLu', key: 'contact.ai_new_skills',\n        field_value: JSON.stringify(ix.new_skills || []) },\n\n      { id: 'S1zKOvPZf3kIr0Pns2R2', key: 'contact.ai_salary_min',\n        field_value: String(ix.salary_min || 0) },\n\n      { id: 'xx3huToYrKXNvhhcofeX', key: 'contact.ai_salary_max',\n        field_value: String(ix.salary_max || 0) },\n\n      { id: 'j4VN1Pc0esX0h1tS18h3', key: 'contact.ai_currency',\n        field_value: String(ix.currency || 'USD') },\n\n      { id: 'LJ0yCDDCzgINxhfSIGGC', key: 'contact.ai_recording_urls',\n        field_value: String(wb.recording_url || '') },\n\n      { id: 'ZdQkdPp3Ha5x6waX3Ubi', key: 'contact.ai_transcripts',\n        field_value: transcript },\n\n      // ✅ NEW: attempts + next attempt + status\n      { id: F_IDS.calls_attempt_count, key: 'contact.calls_attempt_count',\n        field_value: flags.attempt_current != null ? String(flags.attempt_current) : '' },\n\n      { id: F_IDS.next_attempt_at, key: 'contact.next_attempt_at',\n        field_value: flags.next_attempt_at ? new Date(flags.next_attempt_at).toISOString() : '' },\n\n      { id: F_IDS.reactivation_status, key: 'contact.reactivation_status',\n        field_value: reactStatus },\n    ]\n  };\n}}\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        -368
+      ],
+      "id": "43b5ab16-92f2-462b-9e3a-63c4088561ce",
+      "name": "Prepare GHL Request Payload"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inputs\nconst wb  = $('Webhook').first().json.body || {};\nconst fin = $('final disposition - picked - voicemail - etc').first().json || {};\nconst ix  = $('Information Extractor').first().json?.output || {};\n\nconst contactId = wb.custom_data?.ghl_contact_id || '';\nconst oppId     = wb.custom_data?.opportunity_id || '';\nconst attempt   = parseInt(wb.custom_data?.attempt_number ?? '1', 10) || 1;\n\n// ---- Config ----\nconst STAGES = {\n  ENROLLED:                 '82e65fa9-09b5-4211-9f42-4977ea649baf',\n  TO_DIAL_A1:               '6c284b12-ffec-4518-8d89-69fc510874e5',\n  A1_COMPLETED:             'b469a8c1-6189-4fb2-ab2e-4ffdd2e702ee',\n  TO_REDIAL_A2:             'df76879d-78d3-422d-ad4b-86230861855f',\n  A2_COMPLETED_NO_ANSWER:   '9005489e-dcca-4415-86e2-c4e32f45cfd5',\n  QUALIFIED_HANDOFF:        '7127ee42-e807-41e3-a390-3a568f46932d',\n  DNC:                      '5f91f389-f8f4-4b00-a419-e7ae99c2d13d',\n  BAD_NUMBER:               'dfc1e10b-dd09-43e6-ab8e-f7fc5d078b67',\n};\n\nconst TAGS = {\n  ENROLLED:   'recruitment.reactivation.enrolled',\n  LEASED:     'recruitment.reactivation.leased',\n  A1_DONE:    'recruitment.reactivation.attempt1.done',\n  A2_DONE:    'recruitment.reactivation.attempt2.done',\n  QUALIFIED:  'recruitment.reactivation.qualified',\n  DNC:        'recruitment.reactivation.dnc',\n  BAD_NUMBER: 'recruitment.reactivation.bad_number',\n};\n\nconst HOURS_A1_TO_A2 = 2;   // schedule for redial after Attempt 1\nconst HOURS_FALLBACK = 24;  // generic fallback\n\n// ---- Helpers ----\nconst isoPlusHours = (h) => new Date(Date.now() + h*3600*1000).toISOString();\n\n// crude bad-number heuristic from transcript (optional)\nconst tr = String(wb.transcript_string || '').toLowerCase();\nconst badNumberHeuristic = /\\b(not in service|disconnected|cannot be completed|invalid number|number you have dialed)\\b/.test(tr);\n\n// ---- Plan ----\nlet stageId = null, stageName = '';\nlet addTags = [], removeTags = [];\nlet nextAttemptAt = null;\nlet nextAttemptNumber = attempt;\n\nconst disp = fin.final_last_disposition;           // answered | voicemail | no_answer | failed | dnc\nconst stillLooking = !!ix?.still_looking;\n\nif (badNumberHeuristic) {\n  stageId = STAGES.BAD_NUMBER; stageName = 'Bad Number';\n  addTags.push(TAGS.BAD_NUMBER);\n} else if (disp === 'dnc') {\n  stageId = STAGES.DNC; stageName = 'Not Looking / DNC';\n  addTags.push(TAGS.DNC);\n} else if (disp === 'answered') {\n  if (stillLooking) {\n    stageId = STAGES.QUALIFIED_HANDOFF; stageName = 'Qualified → Handoff';\n    addTags.push(TAGS.QUALIFIED);\n  } else {\n    // answered but not pursuing → mark attempt done\n    if (attempt === 1) {\n      stageId = STAGES.A1_COMPLETED; stageName = 'Attempt 1 Completed';\n      addTags.push(TAGS.A1_DONE);\n    } else {\n      stageId = STAGES.A2_COMPLETED_NO_ANSWER; stageName = 'Attempt 2 Completed (No Answer)';\n      addTags.push(TAGS.A2_DONE);\n    }\n  }\n  nextAttemptNumber = attempt; // no bump on answered paths\n} else if (disp === 'voicemail' || disp === 'no_answer' || disp === 'failed') {\n  if (attempt <= 1) {\n    stageId = STAGES.TO_REDIAL_A2; stageName = 'To Redial – Attempt 2';\n    nextAttemptAt = isoPlusHours(HOURS_A1_TO_A2);\n    nextAttemptNumber = 2;\n  } else {\n    stageId = STAGES.A2_COMPLETED_NO_ANSWER; stageName = 'Attempt 2 Completed (No Answer)';\n    addTags.push(TAGS.A2_DONE);\n    nextAttemptAt = null;\n    nextAttemptNumber = 2;\n  }\n} else {\n  // safety: keep in current lane\n  stageId = STAGES.TO_DIAL_A1; stageName = 'To Dial – Attempt 1';\n}\n\n// tidy up basic tag flow\nremoveTags.push(TAGS.ENROLLED); // once we start moving, drop 'enrolled'\n\n// ---- Output for downstream nodes ----\nreturn [{\n  json: {\n    contact_id: contactId,\n    opportunity_id: oppId,\n    disposition: disp,\n    still_looking: stillLooking,\n    attempt_current: attempt,\n    next_attempt_number: nextAttemptNumber,\n    next_attempt_at: nextAttemptAt,          // ISO or null\n    pipeline_stage_id: stageId,\n    pipeline_stage_name: stageName,\n    add_tags: addTags,\n    remove_tags: removeTags,\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        -80
+      ],
+      "id": "211f4ac8-99f1-4472-8cbe-d4a31baaf6e7",
+      "name": "Routing Plan"
+    },
+    {
+      "parameters": {
+        "content": "## Recruiting Pipeline GHL\n\n{\n  \"pipelines\": [\n    {\n      \"stages\": [\n        {\n          \"id\": \"82e65fa9-09b5-4211-9f42-4977ea649baf\",\n          \"name\": \"Enrolled\",\n          \"position\": 0,\n          \"showInFunnel\": true,\n          \"showInPieChart\": true\n        },\n        {\n          \"id\": \"6c284b12-ffec-4518-8d89-69fc510874e5\",\n          \"name\": \"To Dial – Attempt 1\",\n          \"position\": 1,\n          \"showInFunnel\": true,\n          \"showInPieChart\": true\n        },\n        {\n          \"id\": \"b469a8c1-6189-4fb2-ab2e-4ffdd2e702ee\",\n          \"name\": \"Attempt 1 Completed\",\n          \"position\": 2,\n          \"showInFunnel\": true,\n          \"showInPieChart\": true\n        },\n        {\n          \"id\": \"df76879d-78d3-422d-ad4b-86230861855f\",\n          \"name\": \"To Redial – Attempt 2\",\n          \"position\": 3,\n          \"showInFunnel\": true,\n          \"showInPieChart\": true\n        },\n        {\n          \"id\": \"9005489e-dcca-4415-86e2-c4e32f45cfd5\",\n          \"name\": \"Attempt 2 Completed (No Answer)\",\n          \"position\": 4,\n          \"showInFunnel\": true,\n          \"showInPieChart\": true\n        },\n        {\n          \"id\": \"7127ee42-e807-41e3-a390-3a568f46932d\",\n          \"name\": \"Qualified → Handoff\",\n          \"position\": 5,\n          \"showInFunnel\": true,\n          \"showInPieChart\": true\n        },\n        {\n          \"id\": \"5f91f389-f8f4-4b00-a419-e7ae99c2d13d\",\n          \"name\": \"Not Looking / DNC\",\n          \"position\": 6,\n          \"showInFunnel\": true,\n          \"showInPieChart\": true\n        },\n        {\n          \"id\": \"dfc1e10b-dd09-43e6-ab8e-f7fc5d078b67\",\n          \"name\": \"Bad Number\",\n          \"position\": 7,\n          \"showInFunnel\": true,\n          \"showInPieChart\": true\n        }\n      ],\n      \"dateAdded\": \"2025-11-05T22:54:52.559Z\",\n      \"dateUpdated\": \"2025-11-05T22:54:52.559Z\",\n      \"name\": \"Recruitment- Lead Reactivation\",\n      \"showInFunnel\": true,\n      \"showInPieChart\": true,\n      \"id\": \"0ONSu7ZncGAtORzw84v4\"\n    }\n  ],\n  \"traceId\": \"79730f69-6df4-4306-b3cc-540f27f62489\"\n}",
+        "height": 1520,
+        "width": 560
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1888,
+        -1056
+      ],
+      "typeVersion": 1,
+      "id": "aa4e4d1d-959f-41e1-917a-0fe79fdc7578",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://services.leadconnectorhq.com/opportunities/{{ $('Action Flags').item.json.opportunity_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"pipelineId\": \"{{ $('Action Flags').item.json.pipeline_id }}\",\n  \"pipelineStageId\": \"{{ $('Action Flags').item.json.pipeline_stage_id }}\"\n}\n",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        -176
+      ],
+      "id": "d24e29a8-f162-4b62-8306-3c0959872c93",
+      "name": "Update Opportunity",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l5glyd4N1YYvYo9L",
+          "name": "Jujhaar AI GHL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input comes from \"Routing Plan\"\nconst p = $json; // contact_id, opportunity_id, disposition, still_looking, attempt_current, next_attempt_at, pipeline_stage_id, add_tags, remove_tags\n\nreturn [{\n  json: {\n    contact_id: p.contact_id || '',\n    opportunity_id: p.opportunity_id || '',\n    pipeline_id: '0ONSu7ZncGAtORzw84v4',        // your pipeline id\n    pipeline_stage_id: p.pipeline_stage_id || null,\n    pipeline_stage_name: p.pipeline_stage_name || '',\n    disposition: p.disposition || '',\n    attempt_current: Number.isFinite(p.attempt_current) ? p.attempt_current : null,\n    next_attempt_at: p.next_attempt_at || null,\n    add_tags: Array.isArray(p.add_tags) ? p.add_tags : [],\n    remove_tags: Array.isArray(p.remove_tags) ? p.remove_tags : [],\n\n    // booleans for IF nodes\n    should_update_stage: !!(p.opportunity_id && p.pipeline_stage_id),\n    should_add_tags: Array.isArray(p.add_tags) && p.add_tags.length > 0,\n    should_remove_tags: Array.isArray(p.remove_tags) && p.remove_tags.length > 0,\n    should_update_attempt_fields: (\n      Number.isFinite(p.attempt_current) || !!p.next_attempt_at || !!p.disposition\n    ),\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1072,
+        -80
+      ],
+      "id": "6d0b7bc1-e95c-44ce-a0b3-6f35af887e1f",
+      "name": "Action Flags"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ddfea438-6ae6-4e1c-b5a2-ccce9f554478",
+              "leftValue": "={{ $json.should_update_stage }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        -176
+      ],
+      "id": "3744fa7f-4f14-4990-acaf-0563c6fec9c7",
+      "name": "IF (Update Stage?)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5f5b1c73-2801-405c-b1f3-411a62248c0a",
+              "leftValue": "={{ $json.should_add_tags }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        16
+      ],
+      "id": "3db822de-cf9e-488c-8bab-7299c1f62df1",
+      "name": "IF (Add Tags?)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{$json.contact_id}}/tags",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"tags\": {{ JSON.stringify($json.add_tags) }} }\n",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        16
+      ],
+      "id": "cbb811a6-f0df-4b57-8682-46424583c095",
+      "name": "Add Tags",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l5glyd4N1YYvYo9L",
+          "name": "Jujhaar AI GHL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c70c9338-01fa-4997-afda-00a8ab520bf0",
+              "leftValue": "={{ $json.should_remove_tags }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1296,
+        208
+      ],
+      "id": "cc368062-dfd0-4e16-a7b4-0d239b8b1ba9",
+      "name": "IF (Remove Tags?)"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://services.leadconnectorhq.com/contacts/{{$json.contact_id}}/tags",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"tags\": {{ JSON.stringify($json.remove_tags) }} }\n",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        208
+      ],
+      "id": "afaf2578-0f77-4803-9da2-329e1047c0ed",
+      "name": "Remove Tags",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l5glyd4N1YYvYo9L",
+          "name": "Jujhaar AI GHL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.leadconnectorhq.com/contacts/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Version",
+              "value": "2021-07-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"locationId\": \"oGTbzegnY34b0tcJKcOb\",\n  \"page\": 1,\n  \"pageLimit\": 20,\n  \"filters\": [\n    {\n      \"field\": \"phone\",\n      \"operator\": \"eq\",\n      \"value\": \"+16475423118\"\n    }\n  ]\n}\n\n",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1408,
+        752
+      ],
+      "id": "dddb4615-4b79-41ec-9a75-f92ec033920d",
+      "name": "search with phone number1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "l5glyd4N1YYvYo9L",
+          "name": "Jujhaar AI GHL"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "api.vocalgrid.ai",
+            "user-agent": "LiveKit-Agent-Simple-Logger/1.0",
+            "content-length": "15186",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate",
+            "content-type": "application/json",
+            "traceparent": "00-04da0e1ace4e6aa854f38561d6e9f286-ead3329af319c292-01",
+            "via": "1.1 Caddy",
+            "x-forwarded-for": "137.184.231.250",
+            "x-forwarded-host": "api.vocalgrid.ai",
+            "x-forwarded-proto": "https"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "transcript_string": "AI: Hi, is this Gurinder? // User: Yes. // AI: \nHi Gurinder, this is Ryan calling from SuperHire Recruitiing. You applied with us a while back for the Software Developer role in Denver around September 25. I'm the virtual assistant for the team, and I just wanted to quickly check in and update your details for future opportunities. Is now an okay time for a brief chat? // User: Yeah. // AI: \nGreat, thanks. So, // User: Where where are you calling from? // AI: \nI'm calling from SuperHire Recruitiing, a recruitment agency. We're just doing a quick follow up with candidates who previously applied. So, umm, are you currently looking for a new role, or are you more settled for now? // User: Yeah. I am looking for a role. // AI: \nGot it, thanks. What does your current work situation look like right now - are you currently employed, doing contract work, or between roles? // User: I'm currently unemployed. // AI: \nOkay, thanks for sharing that. Are you still based in Denver, or has that changed? // User: Yes. Still in Denver. // AI: \nPerfect. Are you still interested in roles similar to Software Developer, or have your goals changed a bit? // User: Yeah. Looking at software development, we'd also consider, like, QA testing? // AI: \nGot it, so you're open to both software development and QA testing roles. Since you last applied with us, have you picked up any new experience, responsibilities, or certifications that we should know about? // User: I got the AWS certification of got a another certification from a vendor for developing voice AI solutions. // AI: \nThat's fantastic, congratulations on both the AWS certification and the voice AI solutions certification. Those are definitely valuable. To help match you with the right roles, what kind of salary range would you ideally like to target for your next position? // User: Let me something would mean, like, 60 and 65,000 per year. // AI: \nGot it, so around sixty to sixty-five thousand dollars per year. Are you more interested in on-site, hybrid, or remote roles? // User: Remote as preferred. // AI: \nOkay, remote preferred. If the right role came up, how soon could you realistically start? // User: This start on November 15. // AI: \nPerfect, so you could start around November 15. When a good match comes up, what's usually the best way to reach you - phone call, text message, or email? // User: In text message is the best way, I think, // AI: \nGreat, text message it is. And just to double check, is this still the best number for you - one six four seven - five four two - three one one eight? // User: Yes. // AI: \nPerfect. So, just to confirm, you're open to software development and QA testing roles, based in Denver, targeting around sixty to sixty-five thousand dollars, you prefer remote work, and you could start around November 15, with text being the best way to reach you - is that right? // User: Yes. // AI: \nAwesome, I've updated your details so our recruiters can match you more easily. When something that fits pops up, someone from SuperHire Recruitiing will reach out via text. Thanks for catching up with me today, Gurinder, and have a great rest of your day. // User: Okay. Bye. // AI: [TOOL CALL: end_call] {\"trigger\": \"unspecified\"} // AI: \nYou're very welcome. Goodbye, Gurinder.\n",
+            "transcript_messages": {
+              "next": null,
+              "total": 32,
+              "results": [
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "Hi, is this Gurinder?",
+                  "timestamp": "2025-11-08T07:27:37.869038Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Yes.",
+                  "timestamp": "2025-11-08T07:27:41.102273Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nHi Gurinder, this is Ryan calling from SuperHire Recruitiing. You applied with us a while back for the Software Developer role in Denver around September 25. I'm the virtual assistant for the team, and I just wanted to quickly check in and update your details for future opportunities. Is now an okay time for a brief chat?",
+                  "timestamp": "2025-11-08T07:27:59.281986Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Yeah.",
+                  "timestamp": "2025-11-08T07:28:02.429504Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nGreat, thanks. So,",
+                  "timestamp": "2025-11-08T07:28:04.431800Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Where where are you calling from?",
+                  "timestamp": "2025-11-08T07:28:04.463926Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nI'm calling from SuperHire Recruitiing, a recruitment agency. We're just doing a quick follow up with candidates who previously applied. So, umm, are you currently looking for a new role, or are you more settled for now?",
+                  "timestamp": "2025-11-08T07:28:15.969421Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Yeah. I am looking for a role.",
+                  "timestamp": "2025-11-08T07:28:26.133607Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nGot it, thanks. What does your current work situation look like right now - are you currently employed, doing contract work, or between roles?",
+                  "timestamp": "2025-11-08T07:28:35.762124Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "I'm currently unemployed.",
+                  "timestamp": "2025-11-08T07:28:40.289895Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nOkay, thanks for sharing that. Are you still based in Denver, or has that changed?",
+                  "timestamp": "2025-11-08T07:28:45.087528Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Yes. Still in Denver.",
+                  "timestamp": "2025-11-08T07:28:50.281973Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nPerfect. Are you still interested in roles similar to Software Developer, or have your goals changed a bit?",
+                  "timestamp": "2025-11-08T07:28:56.002045Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Yeah. Looking at software development, we'd also consider, like, QA testing?",
+                  "timestamp": "2025-11-08T07:29:06.980110Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nGot it, so you're open to both software development and QA testing roles. Since you last applied with us, have you picked up any new experience, responsibilities, or certifications that we should know about?",
+                  "timestamp": "2025-11-08T07:29:18.715664Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "I got the AWS certification of got a another certification from a vendor for developing voice AI solutions.",
+                  "timestamp": "2025-11-08T07:29:29.801255Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nThat's fantastic, congratulations on both the AWS certification and the voice AI solutions certification. Those are definitely valuable. To help match you with the right roles, what kind of salary range would you ideally like to target for your next position?",
+                  "timestamp": "2025-11-08T07:29:44.898423Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Let me something would mean, like, 60 and 65,000 per year.",
+                  "timestamp": "2025-11-08T07:29:52.434668Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nGot it, so around sixty to sixty-five thousand dollars per year. Are you more interested in on-site, hybrid, or remote roles?",
+                  "timestamp": "2025-11-08T07:30:00.827951Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Remote as preferred.",
+                  "timestamp": "2025-11-08T07:30:05.139343Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nOkay, remote preferred. If the right role came up, how soon could you realistically start?",
+                  "timestamp": "2025-11-08T07:30:10.552817Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "This start on November 15.",
+                  "timestamp": "2025-11-08T07:30:17.434627Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nPerfect, so you could start around November 15. When a good match comes up, what's usually the best way to reach you - phone call, text message, or email?",
+                  "timestamp": "2025-11-08T07:30:26.944786Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "In text message is the best way, I think,",
+                  "timestamp": "2025-11-08T07:30:35.791277Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nGreat, text message it is. And just to double check, is this still the best number for you - one six four seven - five four two - three one one eight?",
+                  "timestamp": "2025-11-08T07:30:46.310897Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Yes.",
+                  "timestamp": "2025-11-08T07:30:49.335164Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nPerfect. So, just to confirm, you're open to software development and QA testing roles, based in Denver, targeting around sixty to sixty-five thousand dollars, you prefer remote work, and you could start around November 15, with text being the best way to reach you - is that right?",
+                  "timestamp": "2025-11-08T07:31:03.140666Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Yes.",
+                  "timestamp": "2025-11-08T07:31:05.783124Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nAwesome, I've updated your details so our recruiters can match you more easily. When something that fits pops up, someone from SuperHire Recruitiing will reach out via text. Thanks for catching up with me today, Gurinder, and have a great rest of your day.",
+                  "timestamp": "2025-11-08T07:31:19.665959Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_USER",
+                  "text": "Okay. Bye.",
+                  "timestamp": "2025-11-08T07:31:23.491527Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                },
+                {
+                  "role": "MESSAGE_ROLE_TOOL_CALL",
+                  "text": "{\"trigger\": \"unspecified\"}",
+                  "timestamp": "2025-11-08T07:31:24.186145Z",
+                  "toolName": "end_call"
+                },
+                {
+                  "role": "MESSAGE_ROLE_AGENT",
+                  "text": "\nYou're very welcome. Goodbye, Gurinder.\n",
+                  "timestamp": "2025-11-08T07:31:26.639195Z",
+                  "call_id": "628b0d33-3288-4072-9ca6-7515002595ee"
+                }
+              ]
+            },
+            "created": "2025-11-08T07:27:14.258266Z",
+            "joined": "2025-11-08T07:27:33.389359Z",
+            "ended": "2025-11-08T07:31:27.814269Z",
+            "end_call_reason": null,
+            "call_duration_seconds": 253,
+            "custom_data": {
+              "agent_id": "agent_f121a154-2034-4aa5-9d14-6141707f11ea",
+              "from_phone_number": "+14346089586",
+              "to_phone_number": "+16475423118",
+              "name": "Gurinder",
+              "ghl_contact_id": "C33pY52acH7aRdB1ZyDz",
+              "transfer_number_ssdi": null,
+              "transfer_number_dq": null,
+              "voice_id": "d4384ac9-d7a0-42e0-82ac-1f9b860eb0da",
+              "room_name": "628b0d33-3288-4072-9ca6-7515002595ee",
+              "call_id": "628b0d33-3288-4072-9ca6-7515002595ee",
+              "AGENT_NAME": "Ryan",
+              "AGENCY_NAME": "SuperHire Recruitiing",
+              "ORIGINAL_JOB_TITLE": "Software Developer",
+              "JOB_LOCATION": "Denver",
+              "CANDIDATE_CITY": "Denver",
+              "CANDIDATE_FIRST_NAME": "Gurinder",
+              "APPLICATION_DATE": "September 25",
+              "user_number": "+16475423118",
+              "initiator": "ghl",
+              "orchestrator": "08-call-orchestration",
+              "script_version": "v1",
+              "prompt_version": "v1.0.0",
+              "attempt_number": "1",
+              "attempt_count": "0",
+              "campaign": " Nova Recruiters.campaign_1",
+              "pipeline_name": "Recruitment- Lead Reactivation",
+              "stage_name": "Enrolled",
+              "lease_tag": "recruitment.reactivation.leased",
+              "first_name": "Gurinder",
+              "last_name": "Saini",
+              "email": "gurinderfbaexcel@gmail.com",
+              "timezone": "EST",
+              "opportunity_id": "1p3OTYoPnYHd9qRMc9jl",
+              "agent_config": {
+                "vad_settings": {
+                  "min_speech_duration": 0.05,
+                  "activation_threshold": 0.55,
+                  "min_silence_duration": 0.55,
+                  "prefix_padding_duration": 0.5
+                },
+                "volume-boost": 1,
+                "first_message": "Hi, is this {{CANDIDATE_FIRST_NAME}}?",
+                "llm_fallbacks": [
+                  {
+                    "model": "zai-org/GLM-4.6",
+                    "provider": "baseten",
+                    "temperature": 0.3
+                  },
+                  {
+                    "model": "zai-org/glm-4.6",
+                    "base_url": "https://api.novita.ai/openai/v1",
+                    "provider": "openai",
+                    "raw_api_key": "sk6Rx6XUZCNo",
+                    "temperature": 0.3
+                  },
+                  {
+                    "model": "accounts/fireworks/models/glm-4p6",
+                    "provider": "fireworks",
+                    "temperature": 0.3
+                  },
+                  {
+                    "model": "gpt-4.1-mini",
+                    "provider": "openai",
+                    "temperature": 0.3
+                  },
+                  {
+                    "model": "glm-4.6",
+                    "base_url": "https://api.z.ai/api/paas/v4/",
+                    "provider": "openai",
+                    "raw_api_key": "3.ZA",
+                    "temperature": 0.3
+                  },
+                  {
+                    "model": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+                    "provider": "together",
+                    "temperature": 0.3
+                  },
+                  {
+                    "model": "accounts/fireworks/models/qwen3-235b-a22b-instruct-2507",
+                    "provider": "fireworks",
+                    "temperature": 0.3
+                  }
+                ],
+                "stt_fallbacks": [
+                  {
+                    "model": "nova-3",
+                    "language": "en",
+                    "provider": "deepgram",
+                    "punctuate": true,
+                    "smart_format": true,
+                    "interim_results": true
+                  }
+                ],
+                "tts_fallbacks": [
+                  {
+                    "model": "sonic-3",
+                    "voice": "d4384ac9-d7a0-42e0-82ac-1f9b860eb0da",
+                    "provider": "cartesia"
+                  }
+                ],
+                "regex_removals": "trigger,initiate",
+                "initial_speaker": "agent",
+                "user_inactivity": {
+                  "inactivity_initial_warning_seconds": 30,
+                  "inactivity_initial_warning_message": "Hello?",
+                  "inactivity_final_warning_seconds": 15,
+                  "inactivity_final_warning_message": "Hello?"
+                },
+                "background_audio": false,
+                "max_call_seconds": "900s",
+                "end-call-analysis": {
+                  "structured": {
+                    "timeout_seconds": 10
+                  }
+                },
+                "stop_speaking_plan": {
+                  "min_interruption_words": 3
+                },
+                "start_speaking_plan": [
+                  {
+                    "max_endpointing_delay": 4,
+                    "min_endpointing_delay": 1,
+                    "min_interruption_duration": 2.5
+                  }
+                ],
+                "initial_message_delay": 2,
+                "conversational_flows_agent": false,
+                "end_call_analysis_webhooks": [
+                  "https://api.vocalgrid.ai/webhook/02237b61-afaf-4ab0-b094-e5b839835ccf"
+                ],
+                "is_test_agent": false,
+                "tts": {
+                  "provider": null,
+                  "model": null,
+                  "voice_id": "d4384ac9-d7a0-42e0-82ac-1f9b860eb0da"
+                },
+                "max_call_minutes": 15,
+                "turn_detection": {
+                  "min_interruption_duration": 2.5,
+                  "min_endpointing_delay": 1,
+                  "max_endpointing_delay": 4
+                },
+                "vad": {
+                  "activation_threshold": 0.55,
+                  "min_speech_duration": 0.05,
+                  "min_silence_duration": 0.55,
+                  "prefix_padding_duration": 0.5
+                }
+              },
+              "sip.twilio.callSid": "CA9b308ba16cedee42d8e6b8104de1b194",
+              "sip.callIDFull": "eujJegj3cVRlNZpg2CfJm1zBuINA",
+              "sip.callTag": "94207393_c3356d0b_22517627-be4b-4b60-a0ab-f73ec4bb8012"
+            },
+            "tool_events": [
+              {
+                "tool_name": "end_call",
+                "event_type": "call",
+                "timestamp": "2025-11-08T07:31:24.186099Z",
+                "data": {
+                  "trigger": "unspecified"
+                },
+                "invocation_id": null,
+                "call_id": "628b0d33-3288-4072-9ca6-7515002595ee",
+                "job_id": null,
+                "room_name": null
+              }
+            ],
+            "webhook_timestamp": "2025-11-08T07:31:27.814538Z",
+            "call_id": "628b0d33-3288-4072-9ca6-7515002595ee",
+            "job_id": null,
+            "room_name": null,
+            "trigger_dev_waitpoint_url": null
+          },
+          "webhookUrl": "https://api.vocalgrid.ai/webhook/02237b61-afaf-4ab0-b094-e5b839835ccf",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send to LK main webhook to save in VG Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "disconnection reason1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "disconnection reason1": {
+      "main": [
+        [
+          {
+            "node": "final disposition - picked - voicemail - etc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update GHL": {
+      "main": [
+        []
+      ]
+    },
+    "final disposition - picked - voicemail - etc": {
+      "main": [
+        [
+          {
+            "node": "Routing Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare GHL Request Payload": {
+      "main": [
+        [
+          {
+            "node": "Update GHL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Routing Plan": {
+      "main": [
+        [
+          {
+            "node": "Action Flags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Flags": {
+      "main": [
+        [
+          {
+            "node": "Prepare GHL Request Payload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF (Update Stage?)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF (Add Tags?)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF (Remove Tags?)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF (Update Stage?)": {
+      "main": [
+        [
+          {
+            "node": "Update Opportunity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF (Add Tags?)": {
+      "main": [
+        [
+          {
+            "node": "Add Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF (Remove Tags?)": {
+      "main": [
+        [
+          {
+            "node": "Remove Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b2080463-4cec-4ef2-92f0-6c14dd73fb6e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "91af3371e192c52c4ee1aaa207c5b65f9b2d0a32708817d3db10855f0c00ee4e"
+  },
+  "id": "ORdHFRiYHf3g9Qum",
+  "tags": []
+}

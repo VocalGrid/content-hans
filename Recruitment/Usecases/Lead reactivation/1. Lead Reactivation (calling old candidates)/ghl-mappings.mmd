@@ -1,0 +1,82 @@
+flowchart TB
+  %% Recruitment Lead Reactivation GHL to Supabase Mapping
+  subgraph GHL
+    Contacts[Contacts]
+    Pipeline[Pipeline]
+    Fields[Custom Fields]
+    Tags[Tags]
+  end
+
+  subgraph Supabase
+    Campaigns[campaigns]
+    Candidates[candidates]
+    CampCandidates[campaign_candidates]
+    CallTasks[call_tasks]
+    CallAttempts[call_attempts]
+    Extractions[extractions]
+    RecruiterLeads[recruiter_leads]
+  end
+
+  subgraph Automations
+    Auto[Automations]
+    N8N[n8n]
+    VG[VG Dialer]
+  end
+
+  %% Core mappings
+  Contacts <--> Candidates
+  Fields --> Candidates
+  Tags --> Candidates
+  Campaigns --> CampCandidates
+  Campaigns --> CallTasks
+  CallTasks --> CallAttempts
+  CallAttempts --> Extractions
+  Pipeline --> RecruiterLeads
+
+  %% Automation glue
+  Auto --> Contacts
+  Auto --> Pipeline
+  Auto --> Fields
+  Auto --> Tags
+  N8N --> Contacts
+  N8N --> Pipeline
+  N8N --> Tags
+  N8N --> CallTasks
+  N8N --> CallAttempts
+  N8N --> RecruiterLeads
+  VG --> N8N
+
+  %% Pipeline detail
+  subgraph PipelinesDetail
+    subgraph PipelineDetail
+      LR_Enrolled[Enrolled]
+      LR_ToDial1[To Dial 1]
+      LR_Attempt1Completed[Attempt 1 Completed]
+      LR_ToRedial2[To Redial 2]
+      LR_Attempt2Completed[Attempt 2 Completed]
+      LR_Qualified[Qualified]
+      LR_NotLooking[Not Looking]
+      LR_BadNumber[Bad Number]
+    end
+
+    LR_Enrolled --> LR_ToDial1 --> LR_Attempt1Completed --> LR_ToRedial2 --> LR_Attempt2Completed
+    LR_Attempt1Completed --> LR_Qualified
+    LR_Attempt2Completed --> LR_Qualified
+    LR_Attempt1Completed --> LR_NotLooking
+    LR_Attempt2Completed --> LR_NotLooking
+    LR_Attempt1Completed --> LR_BadNumber
+    LR_Attempt2Completed --> LR_BadNumber
+
+  %% Custom fields detail
+  subgraph FieldsDetail
+    CF_Campaign[reactivation_campaign]
+    CF_Status[reactivation_status]
+    CF_AttemptCount[calls_attempt_count]
+    CF_NextAttempt[next_attempt_at]
+    CF_LastDisp[last_disposition]
+    CF_AISummary[ai_call_summaries]
+    CF_AIExp[ai_candidate_experience]
+    CF_AISalary[ai_salary_expectation]
+    CF_Availability[ai_availability]
+    CF_Recording[ai_recording_urls]
+  end

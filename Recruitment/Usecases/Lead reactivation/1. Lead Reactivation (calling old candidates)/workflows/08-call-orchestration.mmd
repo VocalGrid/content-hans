@@ -1,0 +1,11 @@
+flowchart TB
+  W8_Trigger[Trigger Pipeline Stage Changed]
+  W8_If[If Else DND off and attempts < 2 and not leased]
+  W8_Tag[Add Contact Tag reactivation leased]
+  W8_Webhook[Webhook POST to n8n]
+  W8_Note1[Add Note Call dispatch]
+  W8_Note2[Add Note Skipped]
+
+  W8_Trigger --> W8_If
+  W8_If --> W8_Tag --> W8_Webhook --> W8_Note1
+  W8_If --> W8_Note2

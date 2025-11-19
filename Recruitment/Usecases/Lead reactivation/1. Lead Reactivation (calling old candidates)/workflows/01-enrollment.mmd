@@ -1,0 +1,11 @@
+flowchart TB
+  W1_Trigger[Trigger Contact Tag]
+  W1_If[If Else calls_attempt_count is empty]
+  W1_SetCount[Update Contact Field calls_attempt_count=0]
+  W1_SetCamp[Update Contact Field reactivation_campaign]
+  W1_Opp[Create/Update Opportunity Stage Enrolled]
+  W1_Next[Update Contact Field next_attempt_at now]
+  W1_Note[Add Note Enrolled]
+
+  W1_Trigger --> W1_If
+  W1_If --> W1_SetCount --> W1_SetCamp --> W1_Opp --> W1_Next --> W1_Note

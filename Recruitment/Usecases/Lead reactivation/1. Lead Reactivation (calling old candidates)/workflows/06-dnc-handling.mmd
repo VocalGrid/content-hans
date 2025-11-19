@@ -1,0 +1,9 @@
+flowchart TB
+  W6_Trigger[Trigger Contact Tag or DND]
+  W6_DND[Enable DND]
+  W6_Opp[Create/Update Opportunity Stage Not Looking DNC]
+  W6_Clear[Update Contact Field next_attempt_at clear]
+  W6_RemLease[Remove Contact Tag reactivation leased]
+  W6_Note[Add Note DNC]
+
+  W6_Trigger --> W6_DND --> W6_Opp --> W6_Clear --> W6_RemLease --> W6_Note

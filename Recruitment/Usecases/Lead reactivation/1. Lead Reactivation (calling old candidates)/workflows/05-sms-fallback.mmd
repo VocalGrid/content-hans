@@ -1,0 +1,7 @@
+flowchart TB
+  W5_Trigger[Check calls attempt count]
+  W5_Cond[Check last disposition]
+  W5_SMS[Send SMS]
+  W5_Note[Add note SMS]
+
+  W5_Trigger --> W5_Cond --> W5_SMS --> W5_Note
